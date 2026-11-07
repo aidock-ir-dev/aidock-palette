@@ -101,7 +101,7 @@ footer a{color:var(--fg);text-decoration:none}
   <div class="prev" id="prev"><div class="pick" id="pick"></div></div>
   <p class="hint" id="pickHint">روی هر نقطه‌ی تصویر بزن تا دقیقاً همون رنگ کپی بشه.</p>
   <div id="bcWrap" class="hide">
-   <div class="lbl">بارکد رنگی کل فایل · هر نوار یه لحظه است، روش بزن تا کپی بشه</div>
+   <div class="lbl">بارکد رنگی کل فایل · هر نوار رنگ شاخص یه لحظه است، روش بزن تا کپی بشه</div>
    <canvas class="barcode" id="barcode"></canvas>
    <div class="acts"><button class="btn" id="dlBar">⬇️ دانلود بارکد</button></div>
   </div>
@@ -188,6 +188,8 @@ function quantize(px,k){
 /* ---------- sampling ---------- */
 const MAXPOOL=60000;
 function addPixels(data,step,dst){for(let i=0;i<data.length;i+=4*step){if(data[i+3]<128)continue;dst.push(data[i],data[i+1],data[i+2])}}
+function dom(data){const B=new Map();let tot=0;for(let i=0;i<data.length;i+=8){if(data[i+3]<128)continue;const r=data[i],g=data[i+1],b=data[i+2],k=(r>>5)<<6|(g>>5)<<3|(b>>5);let e=B.get(k);if(!e){e=[0,0,0,0];B.set(k,e)}e[0]+=r;e[1]+=g;e[2]+=b;e[3]++;tot++}
+ if(!tot)return[0,0,0];let best=null,bw=-1;for(const e of B.values()){const r=e[0]/e[3],g=e[1]/e[3],b=e[2]/e[3],mx=Math.max(r,g,b),mn=Math.min(r,g,b),w=e[3]*Math.pow(.06+(mx-mn)/255,2)*(mx<40?.25:1)*(.5+mx/510);if(w>bw){bw=w;best=[r,g,b]}}return best}
 function avg(data){let r=0,g=0,b=0,n=0;for(let i=0;i<data.length;i+=16){if(data[i+3]<128)continue;r+=data[i];g+=data[i+1];b+=data[i+2];n++}return n?[r/n,g/n,b/n]:[0,0,0]}
 function finishPool(arr){let a=arr;if(a.length/3>MAXPOOL){const keep=MAXPOOL/(a.length/3),out=[];let acc=0;for(let i=0;i<a.length;i+=3){acc+=keep;if(acc>=1){acc-=1;out.push(a[i],a[i+1],a[i+2])}}a=out}return Uint8Array.from(a)}
 function drawSmall(src,w,h,max){const s=Math.min(1,max/Math.max(w,h)),c=document.createElement("canvas");c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(src,0,0,c.width,c.height);return x.getImageData(0,0,c.width,c.height).data}
@@ -246,14 +248,14 @@ async function loadVideo(file,my){const mk=()=>{const v=document.createElement("
  const N=dur>0?Math.max(1,Math.min(240,Math.round(dur*6))):1,arr=[];frames=[];
  const per=Math.max(1,Math.round(MAXPOOL*2/N/ (96*54)));
  for(let i=0;i<N;i++){if(my!==job)return null;const t=dur>0?dur*(i+.5)/N:0;if(dur>0)await seekTo(t);
-  const data=drawSmall(v,v.videoWidth,v.videoHeight,96);addPixels(data,per,arr);frames.push({t,c:avg(data)});setProg((i+1)/N);status(`در حال خواندن فریم‌ها… ${fa(Math.round((i+1)/N*100))}٪`)}
+  const data=drawSmall(v,v.videoWidth,v.videoHeight,96);addPixels(data,per,arr);frames.push({t,c:dom(data)});setProg((i+1)/N);status(`در حال خواندن فریم‌ها… ${fa(Math.round((i+1)/N*100))}٪`)}
  if(frames.length<2)frames=[];try{v.currentTime=0}catch(e){}$("#meta").textContent=`ویدیو · ${fa(v.videoWidth)}×${fa(v.videoHeight)}`+(dur>0?` · ${dur<10?fa(Math.round(dur*10)/10):fa(Math.round(dur))} ثانیه`:"");return finishPool(arr)}
 
 async function loadGif(file,my){const buf=await file.arrayBuffer();const g=parseGif(buf);if(!g.frames.length)throw new Error("gif");
  let pv;try{pv=await mediaEl(file,()=>new Image(),imgReady)}catch(e){pv=await bitmapCanvas(file).catch(()=>null)}resetPrev();if(pv){$("#prev").prepend(pv);pickSrc=pv}
  const arr=[];frames=[];const total=g.frames.reduce((s,f)=>s+f.w*f.h,0),step=Math.max(1,Math.round(total/(MAXPOOL*2)));
- g.frames.forEach((f,fi)=>{let r=0,gg=0,b=0,n=0;for(let i=0;i<f.idx.length;i+=step){const ix=f.idx[i];if(ix===f.trans||!f.ct)continue;const R=f.ct[ix*3],G=f.ct[ix*3+1],B=f.ct[ix*3+2];arr.push(R,G,B);r+=R;gg+=G;b+=B;n++}
-  frames.push({t:fi,c:n?[r/n,gg/n,b/n]:(frames.length?frames[frames.length-1].c:[0,0,0])})});
+ g.frames.forEach((f,fi)=>{const fd=[];for(let i=0;i<f.idx.length;i+=step){const ix=f.idx[i];if(ix===f.trans||!f.ct)continue;const R=f.ct[ix*3],G=f.ct[ix*3+1],B=f.ct[ix*3+2];arr.push(R,G,B);fd.push(R,G,B,255,0,0,0,0)}
+  frames.push({t:fi,c:fd.length?dom(fd):(frames.length?frames[frames.length-1].c:[0,0,0])})});
  if(frames.length<2)frames=[];
  $("#meta").textContent=`گیف · ${fa(g.W)}×${fa(g.H)} · ${fa(g.frames.length)} فریم`;return finishPool(arr)}
 
@@ -299,7 +301,7 @@ function drawBarcode(){const wrap=$("#bcWrap");if(!frames.length){wrap.classList
 
 /* ---------- copy & toast ---------- */
 let tt=0;function toast(t,col){const e=$("#toast");e.querySelector("span").textContent=t;const i=e.querySelector("i");i.style.display=col?"inline-block":"none";if(col)i.style.background=col;e.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("on"),1500)}
-async function copy(t,col){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.append(a);a.select();try{document.execCommand("copy")}catch(_){}a.remove()}toast(`کپی شد: ${t.length>40?t.slice(0,38)+"…":t}`,col)}
+async function copy(t,col,label){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.append(a);a.select();try{document.execCommand("copy")}catch(_){}a.remove()}toast(label||(t.length>40?"کپی شد ✓":`کپی شد: ${t}`),col)}
 
 /* ---------- picker on preview ---------- */
 $("#prev").addEventListener("click",e=>{if(!pickSrc||e.target===$("#pick"))return;const el=pickSrc,r=el.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
@@ -325,9 +327,9 @@ $("#dlPng").onclick=async()=>{await document.fonts.ready;const W=1080,H=1920,c=d
   x.font=`900 ${Math.round(ch*.36)}px Vz`;const hw=x.measureText(c.hex).width;x.direction="rtl";x.textAlign="right";let fs=Math.round(ch*.24);x.font=`700 ${fs}px Vz`;while(fs>14&&x.measureText(c.fa).width>cw-hw-80){fs--;x.font=`700 ${fs}px Vz`}x.fillText(c.fa,X+cw-28,Y+ch*.58)});
  x.direction="ltr";x.textAlign="center";x.fillStyle="#a59cb8";x.font="700 34px Vz";x.fillText("aidock.ir  ·  @aidock.ir",W/2,H-90);
  dl(c,`${fname}-palette.png`)};
-$("#cpAll").onclick=()=>copy(shown().map(c=>fmtOf(c,fmt)).join("\n"));
-$("#cpCss").onclick=()=>copy(":root{\n"+shown().map((c,i)=>`  --color-${i+1}: ${c.hex}; /* ${c.en} ${c.pct.toFixed(1)}% */`).join("\n")+"\n}");
-$("#prompt").onclick=()=>copy($("#prompt").textContent);
+$("#cpAll").onclick=()=>copy(shown().map(c=>fmtOf(c,fmt)).join("\n"),null,`${fa(palette.length)} کد رنگ کپی شد ✓`);
+$("#cpCss").onclick=()=>copyCss();function copyCss(){copy(":root{\n"+shown().map((c,i)=>`  --color-${i+1}: ${c.hex}; /* ${c.en} ${c.pct.toFixed(1)}% */`).join("\n")+"\n}",null,"کد CSS کپی شد ✓")}
+$("#prompt").onclick=()=>copy($("#prompt").textContent,null,"پرامپت رنگ کپی شد ✓");
 
 /* ---------- controls ---------- */
 let kt=0;$("#k").addEventListener("input",()=>{$("#kv").textContent=fa($("#k").value);clearTimeout(kt);kt=setTimeout(run,90)});
