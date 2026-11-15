@@ -26,6 +26,14 @@
 
 <p align="center"><img src="assets/mobile.jpg" width="300" alt="رنگ‌یاب روی گوشی"> &nbsp; <img src="assets/story.jpg" width="300" alt="عکس پالت برای استوری"></p>
 
+## ابزارهای دیگر آی‌داک
+
+- ✨ [پرامپت‌ساز آی‌داک](https://github.com/aidock-ir-dev/aidock-prompt-builder): فارسی انتخاب کن، پرامپت انگلیسی سینمایی بگیر
+- 📱 [ماکاپ‌ساز آی‌داک](https://github.com/aidock-ir-dev/aidock-mockup): عکس و ویدیوت توی قاب گوشی، لپ‌تاپ و مرورگر
+- 💬 [چت‌ساز آی‌داک](https://github.com/aidock-ir-dev/aidock-chat-maker): ویدیوی چت برای ریلز و شورتس
+
+همه‌ی ابزارها یه‌جا: [github.com/aidock-ir-dev](https://github.com/aidock-ir-dev) · کلی پرامپت فارسیِ تست‌شده: [aidock.ir](https://aidock.ir)
+
 ## مجوز
 
 © ۱۴۰۵ [aidock.ir](https://aidock.ir). همه‌ی حقوق محفوظ است؛ جزئیات در [LICENSE](LICENSE).
